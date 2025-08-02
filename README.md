@@ -111,26 +111,6 @@ self.llm = OpenRouterChatModel(
 )
 ```
 
-## Health Check
 
-**Endpoint**: `GET /health`
 
-Returns system status and version information.
-
-## Production Deployment
-
-1. Set environment variables:
-   - `OPENROUTER_API_KEY`: Your OpenRouter API key
-   - `HACKRX_API_KEY`: Optional API key for authentication
-
-2. Use a production WSGI server like Gunicorn:
-```bash
-pip install gunicorn
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
-```
-
-3. Configure reverse proxy (nginx) for production traffic.
-
-## License
-
-This project is licensed under the MIT License.
+ 
