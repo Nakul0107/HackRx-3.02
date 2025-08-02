@@ -38,9 +38,7 @@ class HackRxInput(BaseModel):
 
 class HackRxResponse(BaseModel):
     """Response model for the HackRx API."""
-    answers: List[dict]
-    status: str
-    message: str
+    answers: List[str]
 
 @app.get("/")
 async def root():
@@ -124,11 +122,18 @@ async def run_hackrx(
         
         logger.info("Request completed successfully")
         
-        return HackRxResponse(
-            answers=answers,
-            status="success",
-            message=f"Successfully processed {len(query.questions)} questions"
-        )
+        # Extract just the answer strings from the answer objects
+        answer_strings = []
+        for answer_obj in answers:
+            if isinstance(answer_obj, dict) and 'answer' in answer_obj:
+                answer_strings.append(answer_obj['answer'])
+            elif isinstance(answer_obj, str):
+                answer_strings.append(answer_obj)
+            else:
+                # Fallback: convert to string
+                answer_strings.append(str(answer_obj))
+        
+        return HackRxResponse(answers=answer_strings)
         
     except HTTPException:
         raise
