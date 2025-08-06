@@ -25,7 +25,6 @@ numpy==1.24.3
 # PyTorch and Transformers (compatible versions)
 torch==2.0.1
 transformers==4.35.0
-tokenizers==0.15.0
 
 # Additional dependencies for sentence-transformers
 protobuf==4.25.1 
