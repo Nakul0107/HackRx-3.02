@@ -1,133 +1,140 @@
-# HackRx API Deployment Guide
+# HackRx Policy QA System - Deployment Guide
 
-## Pre-Submission Checklist ✅
+## Overview
+HackRx Policy QA System is a FastAPI-based application that provides intelligent question-answering capabilities for insurance policy documents using OpenRouter LLM and Pinecone vector storage.
 
-- [x] API endpoint: `/hackrx/run`
-- [x] Request format matches requirements
-- [x] Response format matches requirements
-- [x] HTTPS enabled (after deployment)
-- [x] Handles POST requests
-- [x] Returns JSON response
-- [x] Response time < 30s
-- [x] Tested with sample data
+## Features
+- **FastAPI Web Framework**: High-performance async API
+- **OpenRouter Integration**: Access to multiple LLM models
+- **Pinecone Vector Storage**: Cloud-based vector database for document embeddings
+- **Hybrid Retrieval**: TF-IDF + Pinecone similarity search
+- **PDF Processing**: Automatic text extraction from PDF documents
+- **Fast Response**: Optimized for sub-30 second response times
 
-## Deployment Options
+## Deployment on Render
 
-### Option 1: Railway (Recommended - Free & Easy)
+### Prerequisites
+- Render account
+- OpenRouter API key
+- Pinecone API key
 
-1. **Sign up** at [railway.app](https://railway.app)
-2. **Connect your GitHub repository**:
-   - Go to Railway Dashboard
-   - Click "New Project"
-   - Select "Deploy from GitHub repo"
-   - Choose `fxhxdxd/hackrx_chatbot`
-3. **Deploy automatically**:
-   - Railway will detect the Python app
-   - It will install dependencies from `requirements.txt`
-   - Use the `Procfile` to run the app
-4. **Get your URL**:
-   - Railway provides HTTPS URL automatically
-   - Format: `https://your-app-name.railway.app`
+### Environment Variables
+Set these environment variables in your Render dashboard:
 
-### Option 2: Render (Free Tier Available)
-
-1. **Sign up** at [render.com](https://render.com)
-2. **Create new Web Service**:
-   - Connect GitHub repository
-   - Select `fxhxdxd/hackrx_chatbot`
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-3. **Deploy** and get HTTPS URL
-
-### Option 3: Heroku (Paid)
-
-1. **Install Heroku CLI**:
-   ```bash
-   brew install heroku/brew/heroku
-   ```
-2. **Login and create app**:
-   ```bash
-   heroku login
-   heroku create your-app-name
-   ```
-3. **Deploy**:
-   ```bash
-   git push heroku main
-   ```
-
-### Option 4: Vercel (Free)
-
-1. **Sign up** at [vercel.com](https://vercel.com)
-2. **Import GitHub repository**
-3. **Configure** as Python app
-4. **Deploy** automatically
-
-## Testing Your Deployed API
-
-### 1. Health Check
 ```bash
-curl https://your-app-url.railway.app/health
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+PINECONE_API_KEY=your_pinecone_api_key_here
+HACKRX_API_KEY=your_hackrx_api_key_here  # Optional
 ```
 
-### 2. Test the Main Endpoint
+### Deployment Steps
+
+1. **Connect Repository**
+   - Connect your GitHub repository to Render
+   - Select the repository containing this code
+
+2. **Create Web Service**
+   - Choose "Web Service" as the service type
+   - Set the following configuration:
+     - **Build Command**: `pip install -r requirements.txt`
+     - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+     - **Environment**: Python 3.11
+
+3. **Set Environment Variables**
+   - Add the required environment variables in the Render dashboard
+   - Ensure all API keys are properly configured
+
+4. **Deploy**
+   - Click "Create Web Service"
+   - Render will automatically build and deploy your application
+
+### API Endpoints
+
+#### Health Check
 ```bash
-curl -X POST https://your-app-url.railway.app/hackrx/run \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer test-key" \
-  -d '{
-    "documents": "https://example.com/sample.pdf",
-    "questions": ["What is this document about?"]
-  }'
+GET /health
 ```
 
-### 3. Using the Test Script
-Update `test_api.py` with your deployed URL:
-```python
-base_url = "https://your-app-url.railway.app"
-```
-
-Then run:
+#### Main QA Endpoint
 ```bash
-python test_api.py
-```
+POST /hackrx/run
+Content-Type: application/json
+Authorization: Bearer your_openrouter_api_key
 
-## Expected Response Format
-
-Your API should return:
-```json
 {
-  "answers": [
-    "Answer to question 1",
-    "Answer to question 2"
+  "documents": "https://example.com/policy.pdf",
+  "questions": [
+    "What is the grace period?",
+    "What are the coverage limits?"
   ]
 }
 ```
 
-## Submission Details
-
-Once deployed, your submission should include:
-
-- **Webhook URL**: `https://your-app-url.railway.app/hackrx/run`
-- **Description**: "FastAPI + Gemini 2.5 Flash + Enhanced Vector Search with TF-IDF scoring, numerical grounding, and confidence scoring"
-
-## Environment Variables
-
-Make sure to set these in your deployment platform:
-- `OPENROUTER_API_KEY`: Your OpenRouter API key
-- `HACKRX_API_KEY`: Your API key for authentication (optional for testing)
-
-## Troubleshooting
-
-### Common Issues:
-1. **Timeout errors**: Increase timeout limits in deployment platform
-2. **Memory issues**: Upgrade to paid tier if needed
-3. **Dependency issues**: Check `requirements.txt` is complete
-4. **Port issues**: Use `$PORT` environment variable
-
-### Local Testing:
+#### Document Processing
 ```bash
-pip install -r requirements.txt
-uvicorn main:app --reload
+POST /hackrx/process
+Authorization: Bearer your_hackrx_api_key
+
+{
+  "document_url": "https://example.com/policy.pdf"
+}
 ```
 
-Then test with: `python test_api.py` 
+### Docker Deployment (Alternative)
+
+If you prefer Docker deployment:
+
+1. **Build Image**
+   ```bash
+   docker build -t hackrx-policy-qa .
+   ```
+
+2. **Run Container**
+   ```bash
+   docker run -p 8000:8000 \
+     -e OPENROUTER_API_KEY=your_key \
+     -e PINECONE_API_KEY=your_key \
+     hackrx-policy-qa
+   ```
+
+### Monitoring and Logs
+
+- **Render Dashboard**: Monitor application health and logs
+- **Health Check**: Use `/health` endpoint for monitoring
+- **Logs**: Access logs through Render dashboard
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **API Key Errors**
+   - Verify all environment variables are set correctly
+   - Check API key permissions and quotas
+
+2. **Memory Issues**
+   - Render provides up to 512MB RAM for free tier
+   - Consider upgrading for larger documents
+
+3. **Timeout Issues**
+   - Default timeout is 30 seconds
+   - Optimize for faster response times
+
+#### Performance Optimization
+
+- **Vector Caching**: Pinecone provides fast vector retrieval
+- **Chunk Optimization**: Adjust chunk size in `pinecone_retriever.py`
+- **Model Selection**: Choose appropriate OpenRouter model for your needs
+
+### Security Considerations
+
+- **API Key Protection**: Never commit API keys to version control
+- **Input Validation**: All inputs are validated using Pydantic
+- **Rate Limiting**: Consider implementing rate limiting for production
+
+### Support
+
+For deployment issues:
+1. Check Render logs in the dashboard
+2. Verify environment variables
+3. Test locally before deploying
+4. Monitor application health endpoints 

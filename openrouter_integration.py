@@ -7,7 +7,7 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun, Callbacks, Cal
 from langchain.schema import LLMResult
 from langchain.schema.runnable import Runnable, RunnableConfig
 from langchain.schema.output import Generation, LLMResult
-from langchain.pydantic_v1 import Field, root_validator
+from pydantic import Field, root_validator
 from langchain.load.serializable import Serializable
 
 logger = logging.getLogger(__name__)
@@ -58,9 +58,17 @@ class OpenRouterLLM(LLM, Runnable):
             )
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"HTTP Error calling OpenRouter API: {e}")
+            if e.response.status_code == 401:
+                raise Exception("Invalid OpenRouter API key. Please check your API key.")
+            elif e.response.status_code == 429:
+                raise Exception("Rate limit exceeded. Please try again later.")
+            else:
+                raise Exception(f"OpenRouter API error: {e}")
         except Exception as e:
             logger.error(f"Error calling OpenRouter API: {e}")
-            return f"Error processing question: {str(e)}"
+            raise Exception(f"Failed to call OpenRouter API: {str(e)}")
     
     def get_num_tokens(self, text: str) -> int:
         """Get the number of tokens in a text string."""
@@ -81,6 +89,7 @@ class OpenRouterChatModel(Serializable, Runnable):
     temperature: float = Field(default=0.2, description="Temperature for sampling - lowered for more factual responses")
     max_tokens: int = Field(default=2048, description="Maximum number of tokens to generate")
     base_url: str = Field(default="https://openrouter.ai/api/v1", description="Base URL for API")
+    name: str = Field(default="openrouter_chat_model", description="Model name for identification")
     
     class Config:
         """Configuration for this pydantic object."""
@@ -109,9 +118,17 @@ class OpenRouterChatModel(Serializable, Runnable):
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
             return OpenRouterResponse(content=content)
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"HTTP Error calling OpenRouter API: {e}")
+            if e.response.status_code == 401:
+                raise Exception("Invalid OpenRouter API key. Please check your API key.")
+            elif e.response.status_code == 429:
+                raise Exception("Rate limit exceeded. Please try again later.")
+            else:
+                raise Exception(f"OpenRouter API error: {e}")
         except Exception as e:
             logger.error(f"Error calling OpenRouter API: {e}")
-            return OpenRouterResponse(content=f"Error processing question: {str(e)}")
+            raise Exception(f"Failed to call OpenRouter API: {str(e)}")
     
     def batch(self, inputs: List[str], config: Optional[RunnableConfig] = None) -> List[Any]:
         """Process multiple inputs with the model."""

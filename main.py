@@ -6,14 +6,21 @@ import os
 from dotenv import load_dotenv
 
 from processor import extract_text_from_url
-from retriever import VectorStoreManager
+from pinecone_retriever import PineconeVectorStoreManager
 from qa import answer_questions
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
-# Set OpenRouter API key
-os.environ["OPENROUTER_API_KEY"] = "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"
+# Set API keys - use environment variables only
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+
+# Validate required API keys
+if not OPENROUTER_API_KEY:
+    raise ValueError("OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.")
+if not PINECONE_API_KEY:
+    raise ValueError("PINECONE_API_KEY environment variable is required. Please set it in your .env file or environment.")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +29,7 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="HackRx Policy QA System",
-    description="LLM-powered Policy QA System using Gemini 2.5 Flash",
+    description="LLM-powered Policy QA System using OpenRouter",
     version="1.0.0"
 )
 
@@ -70,15 +77,22 @@ async def run_hackrx(
         HackRxResponse: Answers to the questions
     """
     try:
-        # Validate API key (bypassed for testing)
-        api_key = os.getenv("HACKRX_API_KEY")
-        # For testing purposes, accept any API key that follows the Bearer format
-        if api_key and (not authorization or not authorization.startswith("Bearer ")):
+        # Use authorization header as OpenRouter API key if provided
+        if authorization and authorization.startswith("Bearer "):
+            openrouter_api_key = authorization.replace("Bearer ", "")
+            logger.info("Using OpenRouter API key from authorization header")
+        else:
+            openrouter_api_key = OPENROUTER_API_KEY
+            logger.info("Using default OpenRouter API key")
+        
+        # Validate HackRx API key (bypassed for testing)
+        hackrx_api_key = os.getenv("HACKRX_API_KEY")
+        if hackrx_api_key and (not authorization or not authorization.startswith("Bearer ")):
             raise HTTPException(
                 status_code=401, 
                 detail="Invalid API key format"
             )
-        logger.info("API key validation bypassed for testing")
+        logger.info("HackRx API key validation bypassed for testing")
         
         logger.info(f"Processing request with {len(query.questions)} questions")
         
@@ -101,23 +115,22 @@ async def run_hackrx(
         
         # Build vector store with TF-IDF scoring and overlapping chunks
         logger.info("Building enhanced vector store with TF-IDF scoring and overlapping chunks")
-        vector_manager = VectorStoreManager()
+        vector_manager = PineconeVectorStoreManager(api_key=PINECONE_API_KEY)
         vector_store = vector_manager.build_vector_store(text)
         
-        # Answer questions with enhanced accuracy systems
-        logger.info("Generating answers with enhanced accuracy systems: numerical grounding, completeness checking, and confidence scoring")
+        # Answer questions with simplified system for faster response
+        logger.info("Generating answers with simplified system for faster response")
         
-        # Create QA system and pass the vector_manager to ensure scorer access
+        # Create QA system and reuse the existing vector manager
         from qa import PolicyQASystem
-        qa_system = PolicyQASystem()
-        qa_system.vector_manager = vector_manager  # Use the same vector_manager with initialized scorers
+        qa_system = PolicyQASystem(api_key=openrouter_api_key)
+        qa_system.vector_manager = vector_manager  # Reuse the existing vector manager with working Pinecone connection
         
         answers = qa_system.answer_questions(
             questions=query.questions,
             vector_store=vector_store,
             use_hybrid=True,
-            use_advanced_hybrid=True,  # Use the most advanced retrieval method
-            document_text=text  # Pass full document text for numerical grounding
+            document_text=text
         )
         
         logger.info("Request completed successfully")
@@ -190,4 +203,6 @@ async def process_document(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
