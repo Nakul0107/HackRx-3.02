@@ -2,7 +2,7 @@ import os
 import logging
 import re
 from typing import List, Dict, Any, Optional
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from pinecone_retriever import PineconeVectorStoreManager
 from openrouter_integration import OpenRouterChatModel
 

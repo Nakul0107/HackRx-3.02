@@ -2,13 +2,12 @@ import os
 import requests
 from typing import List, Dict, Any, Optional, Union, Mapping, Sequence, TypeVar, cast
 import logging
-from langchain.llms.base import LLM
-from langchain.callbacks.manager import CallbackManagerForLLMRun, Callbacks, CallbackManager
-from langchain.schema import LLMResult
-from langchain.schema.runnable import Runnable, RunnableConfig
-from langchain.schema.output import Generation, LLMResult
+from langchain_core.language_models.llms import LLM
+from langchain_core.callbacks.manager import CallbackManagerForLLMRun, Callbacks, CallbackManager
+from langchain_core.outputs import LLMResult, Generation
+from langchain_core.runnables import Runnable, RunnableConfig
 from pydantic import Field, root_validator
-from langchain.load.serializable import Serializable
+from langchain_core.load.serializable import Serializable
 
 logger = logging.getLogger(__name__)
 
