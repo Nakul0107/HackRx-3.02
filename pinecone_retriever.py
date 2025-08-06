@@ -6,7 +6,6 @@ import logging
 import os
 import numpy as np
 from collections import defaultdict
-from tfidf_scorer import TFIDFScorer, create_tfidf_scorer
 from pinecone import Pinecone
 import uuid
 
@@ -37,8 +36,6 @@ class PineconeVectorStoreManager:
             separators=["\n\n", "\n", ". ", " ", ""]  # Added sentence boundary
         )
         
-        # Initialize TF-IDF scorer only
-        self.tfidf_scorer = None
         self.chunks = []
         # Store original document chunks for context expansion
         self.original_chunks = []
@@ -96,9 +93,7 @@ class PineconeVectorStoreManager:
                     'next': i+1 if i < len(chunks)-1 else None
                 }
             
-            # Initialize TF-IDF scorer with chunks
-            logger.info("Initializing TF-IDF scorer")
-            self.tfidf_scorer = create_tfidf_scorer(chunks)
+
             
             # Generate embeddings and upload to Pinecone
             logger.info("Generating embeddings and uploading to Pinecone")
@@ -193,76 +188,22 @@ class PineconeVectorStoreManager:
         
         return expanded_docs
     
-    def get_hybrid_retriever(self, query: str, top_k: int = 8, 
-                           tfidf_weight: float = 0.4, embedding_weight: float = 0.6) -> List[Document]:
+    def get_hybrid_retriever(self, query: str, top_k: int = 8) -> List[Document]:
         """
-        Get documents using hybrid retrieval combining TF-IDF and Pinecone similarity.
+        Get documents using Pinecone similarity search (simplified for latency).
         
         Args:
             query (str): The query
             top_k (int): Number of documents to retrieve
-            tfidf_weight (float): Weight for TF-IDF scores
-            embedding_weight (float): Weight for embedding similarity scores
             
         Returns:
             List[Document]: Retrieved documents
         """
         try:
-            if not self.tfidf_scorer:
-                logger.warning("TF-IDF scorer not initialized, using embedding-only retrieval")
-                return self._get_pinecone_only_retrieval(query, top_k)
-            
-            # Get TF-IDF scores
-            tfidf_scores = self.tfidf_scorer.calculate_similarity_scores(query)
-            
-            # Get Pinecone similarity scores
-            pinecone_results = self._get_pinecone_similarity(query, top_k * 2)
-            
-            # Create a mapping of chunk content to Pinecone score
-            pinecone_scores = {}
-            for result in pinecone_results:
-                chunk_id = result.metadata.get("chunk_index", 0)
-                pinecone_scores[chunk_id] = result.score
-            
-            # Combine scores
-            combined_scores = []
-            for chunk_id, tfidf_score in tfidf_scores:
-                if chunk_id < len(self.chunks):
-                    chunk_content = self.chunks[chunk_id]
-                    pinecone_score = pinecone_scores.get(chunk_id, 0.0)
-                    
-                    # Combine scores with weights
-                    combined_score = (tfidf_weight * tfidf_score) + (embedding_weight * pinecone_score)
-                    
-                    combined_scores.append((chunk_id, combined_score, chunk_content))
-            
-            # Sort by combined score and get top_k
-            combined_scores.sort(key=lambda x: x[1], reverse=True)
-            top_results = combined_scores[:top_k]
-            
-            # Convert to documents
-            documents = []
-            for chunk_id, combined_score, chunk_content in top_results:
-                doc = Document(
-                    page_content=chunk_content,
-                    metadata={
-                        "source": "pdf",
-                        "chunk_index": chunk_id,
-                        "position": chunk_id,
-                        "combined_score": combined_score,
-                        "tfidf_score": tfidf_scores[chunk_id][1] if chunk_id < len(tfidf_scores) else 0.0,
-                        "pinecone_score": pinecone_scores.get(chunk_id, 0.0)
-                    }
-                )
-                documents.append(doc)
-            
-            logger.info(f"Retrieved {len(documents)} documents using hybrid retrieval")
-            return documents
-            
-        except Exception as e:
-            logger.error(f"Error in hybrid retrieval: {e}")
-            # Fallback to Pinecone-only retrieval
             return self._get_pinecone_only_retrieval(query, top_k)
+        except Exception as e:
+            logger.error(f"Error in retrieval: {e}")
+            return []
     
     def _get_pinecone_similarity(self, query: str, top_k: int) -> List:
         """Get similarity search results from Pinecone."""
@@ -311,32 +252,7 @@ class PineconeVectorStoreManager:
             logger.error(f"Error in Pinecone-only retrieval: {e}")
             return []
     
-    def get_tfidf_analysis(self, query: str) -> Dict[str, Any]:
-        """
-        Get TF-IDF analysis for debugging.
-        
-        Args:
-            query (str): The query to analyze
-            
-        Returns:
-            Dict[str, Any]: TF-IDF analysis results
-        """
-        try:
-            if not self.tfidf_scorer:
-                return {"error": "TF-IDF scorer not initialized"}
-            
-            scores = self.tfidf_scorer.calculate_similarity_scores(query)
-            top_scores = scores[:5]  # Top 5 scores
-            
-            return {
-                "query": query,
-                "top_scores": [(i, score) for i, score in top_scores],
-                "total_chunks": len(self.chunks)
-            }
-            
-        except Exception as e:
-            logger.error(f"Error in TF-IDF analysis: {e}")
-            return {"error": str(e)}
+
     
     def delete_index(self):
         """Delete the Pinecone index."""
