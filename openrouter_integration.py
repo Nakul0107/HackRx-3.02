@@ -17,9 +17,9 @@ class OpenRouterLLM(LLM, Runnable):
     """LLM wrapper for OpenRouter API."""
     
     api_key: str
-    model: str = "anthropic/claude-3-opus:beta"
+    model: str = "openai/gpt-3.5-turbo"
     temperature: float = 0.1
-    max_tokens: int = 2048
+    max_tokens: int = 500
     base_url: str = "https://openrouter.ai/api/v1"
     
     @property
@@ -84,9 +84,9 @@ class OpenRouterChatModel(Serializable, Runnable):
     """Chat model wrapper for OpenRouter API that implements Runnable interface."""
     
     api_key: str = Field(..., description="OpenRouter API key")
-    model: str = Field(default="anthropic/claude-3-opus:beta", description="Model name")
+    model: str = Field(default="openai/gpt-3.5-turbo", description="Model name")
     temperature: float = Field(default=0.2, description="Temperature for sampling - lowered for more factual responses")
-    max_tokens: int = Field(default=2048, description="Maximum number of tokens to generate")
+    max_tokens: int = Field(default=500, description="Maximum number of tokens to generate")
     base_url: str = Field(default="https://openrouter.ai/api/v1", description="Base URL for API")
     name: str = Field(default="openrouter_chat_model", description="Model name for identification")
     

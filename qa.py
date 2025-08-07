@@ -82,16 +82,9 @@ class PolicyQASystem:
             # Initialize variables
             source_docs = []
             
-            if use_hybrid and hasattr(self.vector_manager, 'tfidf_scorer') and self.vector_manager.tfidf_scorer:
-                # Use hybrid retrieval with TF-IDF scoring
-                logger.info("Using hybrid retrieval with TF-IDF scoring")
-                source_docs = self.vector_manager.get_hybrid_retriever(
-                    question, top_k=8, tfidf_weight=0.4, embedding_weight=0.6
-                )
-            else:
-                # Fallback to Pinecone-only retrieval
-                logger.info("Using Pinecone-only retrieval")
-                source_docs = self.vector_manager._get_pinecone_only_retrieval(question, top_k=8)
+            # Use simplified Pinecone-only retrieval with fewer documents for speed
+            logger.info("Using optimized Pinecone retrieval")
+            source_docs = self.vector_manager._get_pinecone_only_retrieval(question, top_k=4)  # Reduced from 8 to 4
             
             # Create context from retrieved documents
             context = "\n\n".join([doc.page_content for doc in source_docs])
@@ -126,7 +119,7 @@ class PolicyQASystem:
     def answer_questions(self, questions: List[str], vector_store, use_hybrid: bool = True,
                         document_text: str = None) -> List[Dict[str, Any]]:
         """
-        Answer multiple questions using simplified RAG for faster response times.
+        Answer multiple questions using parallel processing for faster response times.
         
         Args:
             questions (List[str]): List of questions to answer
@@ -137,18 +130,35 @@ class PolicyQASystem:
         Returns:
             List[Dict[str, Any]]: List of answers with basic metadata
         """
-        logger.info(f"Processing {len(questions)} questions with simplified system")
+        logger.info(f"Processing {len(questions)} questions with parallel processing")
         
-        answers = []
+        import concurrent.futures
+        import threading
         
-        for i, question in enumerate(questions):
-            logger.info(f"Processing question {i+1}/{len(questions)}")
-            answer = self.answer_question(
-                question, vector_store, use_hybrid, document_text
-            )
-            answers.append(answer)
+        # Use ThreadPoolExecutor for parallel processing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            # Submit all questions for parallel processing
+            future_to_question = {
+                executor.submit(self.answer_question, question, vector_store, use_hybrid, document_text): question 
+                for question in questions
+            }
+            
+            answers = []
+            for future in concurrent.futures.as_completed(future_to_question):
+                try:
+                    answer = future.result()
+                    answers.append(answer)
+                except Exception as e:
+                    question = future_to_question[future]
+                    logger.error(f"Error processing question '{question}': {e}")
+                    answers.append({
+                        "question": question,
+                        "answer": f"Error processing question: {str(e)}",
+                        "sources": [],
+                        "retrieval_method": "error"
+                    })
         
-        logger.info(f"Completed processing {len(questions)} questions")
+        logger.info(f"Completed processing {len(questions)} questions in parallel")
         return answers
 
 def answer_questions(questions: List[str], vector_store, api_key: str = None, use_hybrid: bool = True,

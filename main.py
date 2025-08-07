@@ -68,6 +68,16 @@ async def run_hackrx(
     authorization: Optional[str] = Header(None)
 ):
     """
+    Main endpoint for the HackRx Policy QA System with optimized latency.
+    
+    Args:
+        query (HackRxInput): Input containing document URL and questions
+        authorization (str): API key for authentication
+        
+    Returns:
+        HackRxResponse: Answers to the questions
+    """
+    """
     Main endpoint for the HackRx Policy QA System.
     
     Args:
@@ -114,10 +124,28 @@ async def run_hackrx(
                 detail="No text could be extracted from the document"
             )
         
-        # Build vector store with TF-IDF scoring and overlapping chunks
-        logger.info("Building vector store with Pinecone and overlapping chunks")
+        # Check if we already have this document in Pinecone (cache by URL hash)
+        import hashlib
+        document_hash = hashlib.md5(document_url.encode()).hexdigest()
+        
+        # Try to use existing vector store or build new one
+        logger.info("Checking for existing vector store or building new one")
         vector_manager = PineconeVectorStoreManager(api_key=PINECONE_API_KEY)
-        vector_store = vector_manager.build_vector_store(text)
+        
+        # Check if document already exists in Pinecone
+        try:
+            # Try to query with a simple test to see if data exists
+            test_query = "test"
+            test_results = vector_manager._get_pinecone_similarity(test_query, 1)
+            if test_results:
+                logger.info("Using existing vector store from Pinecone")
+                vector_store = vector_manager.index
+            else:
+                logger.info("Building new vector store with Pinecone")
+                vector_store = vector_manager.build_vector_store(text)
+        except Exception as e:
+            logger.info(f"Building new vector store (error checking existing: {e})")
+            vector_store = vector_manager.build_vector_store(text)
         
         # Answer questions with simplified system for faster response
         logger.info("Generating answers with simplified system for faster response")

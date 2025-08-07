@@ -30,10 +30,10 @@ class PineconeVectorStoreManager:
         # Using HuggingFace embeddings (no API key required)
         self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=2000,  # Increased for better context
-            chunk_overlap=1000,  # Increased to 50% for better context continuity
+            chunk_size=1000,  # Reduced for faster processing
+            chunk_overlap=200,  # Reduced overlap for speed
             length_function=len,
-            separators=["\n\n", "\n", ". ", " ", ""]  # Added sentence boundary
+            separators=["\n\n", "\n", ". ", " ", ""]
         )
         
         self.chunks = []
@@ -135,8 +135,8 @@ class PineconeVectorStoreManager:
                     "metadata": metadata
                 })
             
-            # Upload in batches (Pinecone has limits on batch size)
-            batch_size = 100
+            # Upload in larger batches for faster processing
+            batch_size = 200  # Increased from 100 for faster uploads
             for i in range(0, len(vectors), batch_size):
                 batch = vectors[i:i + batch_size]
                 self.index.upsert(vectors=batch, namespace="")
