@@ -15,6 +15,7 @@ langchain
 langchain-community
 langchain-core
 langchain-text-splitters
+langchain-huggingface
 
 # Vector Database
 pinecone

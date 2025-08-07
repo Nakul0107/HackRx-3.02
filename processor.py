@@ -3,6 +3,10 @@ import requests
 from io import BytesIO
 from typing import Optional
 import logging
+import urllib3
+
+# Suppress SSL warnings for development/deployment
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +24,6 @@ def extract_text_from_url(pdf_url: str) -> str:
         logger.info(f"Downloading PDF from: {pdf_url}")
         # Disable SSL certificate verification to handle expired certificates
         response = requests.get(pdf_url, timeout=30, verify=False)
-        # Suppress only the InsecureRequestWarning from urllib3
-        import urllib3
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         response.raise_for_status()
         
         logger.info("Extracting text from PDF")
