@@ -48,6 +48,7 @@ class HackRxResponse(BaseModel):
     answers: List[str]
 
 @app.get("/")
+@app.head("/")
 async def root():
     """Health check endpoint."""
     return {"message": "HackRx Policy QA System is running!"}
@@ -114,7 +115,7 @@ async def run_hackrx(
             )
         
         # Build vector store with TF-IDF scoring and overlapping chunks
-        logger.info("Building enhanced vector store with TF-IDF scoring and overlapping chunks")
+        logger.info("Building vector store with Pinecone and overlapping chunks")
         vector_manager = PineconeVectorStoreManager(api_key=PINECONE_API_KEY)
         vector_store = vector_manager.build_vector_store(text)
         
